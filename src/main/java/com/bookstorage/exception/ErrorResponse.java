@@ -1,4 +1,4 @@
-package com.bookstorage.exception; // Или com.bookstorage.model
+package com.bookstorage.exception;
 
 public class ErrorResponse {
     private int status;
@@ -9,7 +9,6 @@ public class ErrorResponse {
         this.message = message;
     }
 
-    // Геттеры
     public int getStatus() {
         return status;
     }
