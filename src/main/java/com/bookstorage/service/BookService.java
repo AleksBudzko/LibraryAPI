@@ -1,10 +1,12 @@
 package com.bookstorage.service;
 
+import com.bookstorage.dto.BookDTO;
 import com.bookstorage.exception.BookNotFoundException;
+import com.bookstorage.mapper.BookMapper;
 import com.bookstorage.model.Book;
 import com.bookstorage.repository.BookRepository;
-import com.bookstorage.service.client.BookTrackerClient;
 import lombok.RequiredArgsConstructor;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,50 +18,58 @@ import java.util.Optional;
 @Transactional
 public class BookService {
 	private final BookRepository bookRepository;
-	private final BookTrackerClient bookTrackerClient;
+	private final KafkaTemplate<String, Long> kafkaTemplate;
+	private final BookMapper bookMapper = BookMapper.INSTANCE;
 
-	public Book addBook(Book book) {
+	public BookDTO addBook(BookDTO bookDTO) {
+		Book book = bookMapper.toEntity(bookDTO);
 		Book savedBook = bookRepository.save(book);
-		bookTrackerClient.createTracker(savedBook.getId());
-		return savedBook;
+
+		// Асинхронное создание книги в book-tracker-service через Kafka
+		kafkaTemplate.send("book_created", savedBook.getId());
+
+		return bookMapper.toDTO(savedBook);
 	}
 
-	public List<Book> getAllBooks() {
-		return bookRepository.findByDeletedFalse();
+	public List<BookDTO> getAllBooks() {
+		return bookRepository.findByDeletedFalse()
+				.stream()
+				.map(bookMapper::toDTO)
+				.toList();
 	}
 
-	public Book getBookById(Long id) {
-		return bookRepository.findById(id)
+	public BookDTO getBookById(Long id) {
+		Book book = bookRepository.findById(id)
 				.orElseThrow(() -> new BookNotFoundException(id));
+		return bookMapper.toDTO(book);
 	}
 
-	public Book getBookByIsbn(String isbn) {
+	public BookDTO getBookByIsbn(String isbn) {
 		return Optional.ofNullable(bookRepository.findByIsbn(isbn))
+				.map(bookMapper::toDTO)
 				.orElseThrow(() -> new BookNotFoundException(isbn));
 	}
 
-	public Book updateBook(Long id, Book updatedBook) {
-		return bookRepository.findById(id)
-				.map(book -> {
-					updateBookFields(book, updatedBook);
-					return bookRepository.save(book);
-				})
+	public BookDTO updateBook(Long id, BookDTO updatedBookDTO) {
+		Book book = bookRepository.findById(id)
 				.orElseThrow(() -> new BookNotFoundException(id));
+
+		book.setTitle(updatedBookDTO.getTitle());
+		book.setGenre(updatedBookDTO.getGenre());
+		book.setDescription(updatedBookDTO.getDescription());
+		book.setAuthor(updatedBookDTO.getAuthor());
+
+		return bookMapper.toDTO(bookRepository.save(book));
 	}
 
-	private void updateBookFields(Book target, Book source) {
-		target.setTitle(source.getTitle());
-		target.setGenre(source.getGenre());
-		target.setDescription(source.getDescription());
-		target.setAuthor(source.getAuthor());
-	}
+	public void softDeleteBook(Long id) {
+		Book book = bookRepository.findById(id)
+				.orElseThrow(() -> new BookNotFoundException(id));
 
-	public void deleteBook(Long id) {
-		bookRepository.findById(id).ifPresent(book -> {
-			book.setDeleted(true);
-			bookRepository.save(book);
-			bookTrackerClient.deleteTracker(id);
-		});
+		book.setDeleted(true);
+		bookRepository.save(book);
+
+		// Асинхронное удаление книги в book-tracker-service через Kafka
+		kafkaTemplate.send("book_deleted", id);
 	}
 }
-
