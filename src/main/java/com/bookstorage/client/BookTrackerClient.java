@@ -1,4 +1,4 @@
-package com.bookstorage.service.client;
+package com.bookstorage.client;
 
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.DeleteMapping;

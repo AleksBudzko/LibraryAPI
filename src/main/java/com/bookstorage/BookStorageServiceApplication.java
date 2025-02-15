@@ -9,4 +9,3 @@ public class BookStorageServiceApplication {
 		SpringApplication.run(BookStorageServiceApplication.class, args);
 	}
 }
-

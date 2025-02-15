@@ -24,10 +24,8 @@ public class BookService {
 	public BookDTO addBook(BookDTO bookDTO) {
 		Book book = bookMapper.toEntity(bookDTO);
 		Book savedBook = bookRepository.save(book);
-
-		// Асинхронное создание книги в book-tracker-service через Kafka
+		// Отправка события создания книги в Kafka
 		kafkaTemplate.send("book_created", savedBook.getId());
-
 		return bookMapper.toDTO(savedBook);
 	}
 
@@ -68,8 +66,7 @@ public class BookService {
 
 		book.setDeleted(true);
 		bookRepository.save(book);
-
-		// Асинхронное удаление книги в book-tracker-service через Kafka
+		// Отправка события удаления книги в Kafka
 		kafkaTemplate.send("book_deleted", id);
 	}
 }
