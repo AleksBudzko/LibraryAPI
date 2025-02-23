@@ -9,7 +9,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.util.List;
 import java.util.Optional;
 
@@ -24,7 +23,6 @@ public class BookService {
 	public BookDTO addBook(BookDTO bookDTO) {
 		Book book = bookMapper.toEntity(bookDTO);
 		Book savedBook = bookRepository.save(book);
-		// Отправка события создания книги в Kafka
 		kafkaTemplate.send("book_created", savedBook.getId());
 		return bookMapper.toDTO(savedBook);
 	}
@@ -51,22 +49,18 @@ public class BookService {
 	public BookDTO updateBook(Long id, BookDTO updatedBookDTO) {
 		Book book = bookRepository.findById(id)
 				.orElseThrow(() -> new BookNotFoundException(id));
-
 		book.setTitle(updatedBookDTO.getTitle());
 		book.setGenre(updatedBookDTO.getGenre());
 		book.setDescription(updatedBookDTO.getDescription());
 		book.setAuthor(updatedBookDTO.getAuthor());
-
 		return bookMapper.toDTO(bookRepository.save(book));
 	}
 
 	public void softDeleteBook(Long id) {
 		Book book = bookRepository.findById(id)
 				.orElseThrow(() -> new BookNotFoundException(id));
-
 		book.setDeleted(true);
 		bookRepository.save(book);
-		// Отправка события удаления книги в Kafka
 		kafkaTemplate.send("book_deleted", id);
 	}
 }

@@ -12,7 +12,6 @@ public class ErrorResponse {
     public int getStatus() {
         return status;
     }
-
     public String getMessage() {
         return message;
     }

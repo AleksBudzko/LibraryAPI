@@ -7,6 +7,5 @@ import org.springframework.boot.test.context.SpringBootTest;
 public class BookStorageServiceApplicationTests {
 	@Test
 	void contextLoads() {
-		// Контекст приложения загружается корректно
 	}
 }
